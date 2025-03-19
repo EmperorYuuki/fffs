@@ -1,0 +1,32 @@
+/**
+ * main.css
+ * Main entry point for QuillSync AI styles
+ */
+
+/* Core variables and base styles */
+@import 'variables.css';
+@import 'base.css';
+
+/* Layout components */
+@import 'layout/sidebar.css';
+@import 'layout/tabs.css';
+@import 'layout/header.css';
+@import 'layout/status-bar.css';
+
+/* UI Components */
+@import 'components/buttons.css';
+@import 'components/forms.css';
+@import 'components/modals.css';
+@import 'components/tables.css';
+@import 'components/cards.css';
+
+/* Feature-specific styles */
+@import 'features/translator.css';
+@import 'features/glossary.css';
+@import 'features/chapter-fetcher.css';
+@import 'features/verification.css';
+@import 'features/drafts.css';
+
+/* Animations and utilities */
+@import 'animations.css';
+@import 'utilities.css';

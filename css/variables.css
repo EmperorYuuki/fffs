@@ -1,0 +1,129 @@
+ /**
+ * variables.css
+ * Global CSS variables and theme definitions for QuillSync AI
+ */
+
+:root {
+    /* Base Colors */
+    --accent-color: #00aaff;
+    --accent-hover: #007acc;
+    --accent-r: 0;
+    --accent-g: 170;
+    --accent-b: 255;
+    --accent-rgb: var(--accent-r), var(--accent-g), var(--accent-b);
+    --accent-glow: rgba(var(--accent-rgb), 0.6);
+    
+    /* Dark Theme (Default) */
+    --dark-bg: #0f1216;
+    --dark-secondary: #1a1f26;
+    --dark-tertiary: #242a33;
+    --dark-border: rgba(0, 170, 255, 0.3);
+    --dark-text-primary: #f0f2f5;
+    --dark-text-secondary: #a0a8b0;
+    --dark-text-rgb: 240, 242, 245;
+    --dark-shadow: rgba(0, 0, 0, 0.7);
+    --dark-overlay: rgba(0, 0, 0, 0.8);
+    --dark-panel: rgba(15, 18, 22, 0.7);
+    --dark-glass: rgba(26, 31, 38, 0.7);
+    --dark-accent: var(--accent-color);
+    --dark-accent-rgb: var(--accent-rgb);
+    
+    /* Light Theme */
+    --light-bg: #f0f4f8;
+    --light-secondary: #e0e6ec;
+    --light-tertiary: #d0d8e0;
+    --light-border: rgba(0, 122, 204, 0.3);
+    --light-text-primary: #1a1f26;
+    --light-text-secondary: #5a6572;
+    --light-text-rgb: 26, 31, 38;
+    --light-shadow: rgba(0, 0, 0, 0.2);
+    --light-overlay: rgba(255, 255, 255, 0.8);
+    --light-panel: rgba(240, 244, 248, 0.7);
+    --light-glass: rgba(224, 230, 236, 0.7);
+    --light-accent: var(--accent-color);
+    --light-accent-rgb: var(--accent-rgb);
+    
+    /* Spacing Variables */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    /* Transitions */
+    --transition-fast: 0.15s ease-in-out;
+    --transition-normal: 0.3s ease-in-out;
+    --transition-slow: 0.5s ease-in-out;
+    
+    /* Futuristic UI Effects */
+    --glow-intensity: 0.6;
+    --grid-opacity: 0.07;
+    --blur-radius: 12px;
+    --glass-opacity: 0.7;
+    
+    /* Status Colors */
+    --success: #4caf50;
+    --success-rgb: 76, 175, 80;
+    --warning: #ff9800;
+    --warning-rgb: 255, 152, 0;
+    --error: #f44336;
+    --error-rgb: 244, 67, 54;
+    --info: var(--accent-color);
+    --info-rgb: var(--accent-rgb);
+  }
+  
+  /* Dark Mode (Default) */
+  body.dark-mode {
+    /* Main Elements */
+    --bg: var(--dark-bg);
+    --bg-secondary: var(--dark-secondary);
+    --bg-tertiary: var(--dark-tertiary);
+    --border-color: var(--dark-border);
+    --text-primary: var(--dark-text-primary);
+    --text-secondary: var(--dark-text-secondary);
+    --text-rgb: var(--dark-text-rgb);
+    --shadow: var(--dark-shadow);
+    --overlay: var(--dark-overlay);
+    --panel-bg: var(--dark-panel);
+    --glass-bg: var(--dark-glass);
+    
+    /* Grid & Effects */
+    --grid-color: rgba(255, 255, 255, var(--grid-opacity));
+    
+    /* Status Glows */
+    --success-glow: rgba(var(--success-rgb), var(--glow-intensity));
+    --warning-glow: rgba(var(--warning-rgb), var(--glow-intensity));
+    --error-glow: rgba(var(--error-rgb), var(--glow-intensity));
+    --info-glow: var(--accent-glow);
+  }
+  
+  /* Light Mode */
+  body.light-mode {
+    /* Main Elements */
+    --bg: var(--light-bg);
+    --bg-secondary: var(--light-secondary);
+    --bg-tertiary: var(--light-tertiary);
+    --border-color: var(--light-border);
+    --text-primary: var(--light-text-primary);
+    --text-secondary: var(--light-text-secondary);
+    --text-rgb: var(--light-text-rgb);
+    --shadow: var(--light-shadow);
+    --overlay: var(--light-overlay);
+    --panel-bg: var(--light-panel);
+    --glass-bg: var(--light-glass);
+    
+    /* Grid & Effects */
+    --grid-color: rgba(0, 0, 0, var(--grid-opacity));
+    
+    /* Status Glows */
+    --success-glow: rgba(var(--success-rgb), var(--glow-intensity));
+    --warning-glow: rgba(var(--warning-rgb), var(--glow-intensity));
+    --error-glow: rgba(var(--error-rgb), var(--glow-intensity));
+    --info-glow: rgba(var(--accent-rgb), var(--glow-intensity));
+  }

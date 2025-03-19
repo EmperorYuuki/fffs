@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuillSync AI</title>
+
+    <!-- Quill CSS - Using the same version from original app -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+
+    <!-- Font Awesome - Using the same version from original app -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Google Fonts - Combining original fonts with futuristic options -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Poppins:wght@300;400;600&family=Orbitron:wght@400;500;600&family=Rajdhani:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body class="dark-mode">
+    <!-- Background Elements for Futuristic Feel -->
+    <div class="bg-grid"></div>
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="app-container">
+        <!-- Collapsible Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="logo">
+                    <i class="fas fa-feather-alt"></i>
+                    <h2>QuillSync<span class="accent">AI</span></h2>
+                </div>
+            </div>
+
+            <!-- Project Management -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-project-diagram"></i> Projects</h3>
+                <div class="project-search">
+                    <input type="text" id="project-search-input" placeholder="Search projects..." />
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <div class="project-actions">
+                    <button id="add-project-btn" class="glow-btn" title="Add a new project">
+                        <i class="fas fa-plus"></i> Create Project
+                    </button>
+                    <div class="secondary-actions">
+                        <button id="export-projects-btn" title="Export all projects to JSON">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button id="import-projects-btn" title="Import projects from JSON">
+                            <i class="fas fa-upload"></i> Import
+                        </button>
+                    </div>
+                </div>
+                <ul id="project-list" class="project-list"></ul>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="content-wrapper">
+            <!-- Top Navigation Bar -->
+            <header class="top-bar">
+                <div class="current-project">
+                    <h2 id="current-project-display">No Project Selected</h2>
+                    <span id="last-saved">Last saved: Never</span>
+                </div>
+                <div class="top-controls">
+                    <button id="theme-toggle" title="Switch between light and dark mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="theme-color-picker">
+                        <input type="color" id="theme-color" title="Customize accent color" value="#00aaff">
+                        <label for="theme-color"><i class="fas fa-palette"></i></label>
+                    </div>
+                    <button id="help-btn" title="Show help and instructions">
+                        <i class="fas fa-question"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Tabbed Interface -->
+            <main class="main-content">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="translator">
+                        <i class="fas fa-language"></i>
+                        <span>Translator</span>
+                    </button>
+                    <button class="tab-btn" data-tab="glossary">
+                        <i class="fas fa-book"></i>
+                        <span>Glossary</span>
+                    </button>
+                    <button class="tab-btn" data-tab="drafts">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Drafts</span>
+                    </button>
+                    <button class="tab-btn" data-tab="chapter-fetcher">
+                        <i class="fas fa-download"></i>
+                        <span>Chapters</span>
+                    </button>
+                    <button class="tab-btn" data-tab="settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </button>
+                </div>
+
+                <!-- Tab Content Areas -->
+                <div class="tab-content-container">
+                    <!-- Translator Tab -->
+                    <div class="tab-content active" id="translator-tab">
+                        <div class="translator-container">
+                            <!-- Source Text Area -->
+                            <div class="translator-section source-section">
+                                <h3 class="section-title">Source Text</h3>
+                                <div class="control-bar">
+                                    <select id="chunking-strategy" title="Select text chunking strategy">
+                                        <option value="auto">Auto Chunking</option>
+                                        <option value="chapter">Chapter-based</option>
+                                        <option value="word-count">Word Count</option>
+                                        <option value="none">No Chunking</option>
+                                    </select>
+                                    <input type="number" id="chunk-size" value="1000" min="100" max="5000" step="100"
+                                        title="Words per chunk" />
+                                    <button id="import-btn" title="Import text from a file">
+                                        <i class="fas fa-file-import"></i> Import
+                                    </button>
+                                    <input type="file" id="import-file" accept=".txt,.md,.json,.html"
+                                        style="display: none;">
+                                </div>
+                                <textarea id="input-text" placeholder="Paste or type Chinese text here..."></textarea>
+                                <div class="text-controls">
+                                    <button id="save-input-draft-btn" title="Save input text as a draft file">
+                                        <i class="fas fa-save"></i> Save Draft
+                                    </button>
+                                    <button id="copy-input-btn" title="Copy input text to clipboard">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button id="clear-input-btn" title="Clear input text">
+                                        <i class="fas fa-trash"></i> Clear
+                                    </button>
+                                    <span id="input-word-count" class="stats">0 words</span>
+                                </div>
+                            </div>
+
+                            <!-- Translation Controls - Between editors -->
+                            <div class="translator-controls">
+                                <button id="translate-btn" class="primary-action" title="Translate text">
+                                    <i class="fas fa-language"></i>
+                                    <span>Translate</span>
+                                </button>
+
+                                <div class="progress-container">
+                                    <div id="progress-bar" class="progress-bar">
+                                        <div id="progress" class="progress"></div>
+                                    </div>
+                                    <span id="progress-status">Ready</span>
+                                </div>
+
+                                <div class="translation-options">
+                                    <div class="translation-method">
+                                        <select id="translation-method">
+                                            <option value="chatgpt">ChatGPT</option>
+                                            <option value="openrouter">OpenRouter API</option>
+                                        </select>
+                                    </div>
+
+                                    <label class="toggle-container" title="Apply glossary terms to source text before translation">
+                                        <input type="checkbox" id="apply-glossary-toggle" checked>
+                                        <span class="toggle-switch"></span>
+                                        <span class="toggle-label">Apply Glossary</span>
+                                    </label>
+                                    <label class="toggle-container" title="Include prompt instructions with the source text">
+                                        <input type="checkbox" id="include-prompt-toggle" checked>
+                                        <span class="toggle-switch"></span>
+                                        <span class="toggle-label">Include Prompt</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Translation Output Area -->
+                            <div class="translator-section output-section">
+                                <h3 class="section-title">Translation</h3>
+                                <div class="control-bar">
+                                    <button id="verify-btn" title="Verify translation quality">
+                                        <i class="fas fa-check-double"></i> Verify
+                                    </button>
+                                    <select id="export-format" title="Choose export format or send to Draft Editor">
+                                        <option value="draft" selected>Send to Draft Editor</option>
+                                        <option value="txt">Export as Text</option>
+                                        <option value="md">Export as Markdown</option>
+                                        <option value="html">Export as HTML</option>
+                                        <option value="json">Export as JSON</option>
+                                    </select>
+                                    <button id="export-btn" title="Export translation or send to Draft Editor" data-format="draft">
+                                        <i class="fas fa-file-export"></i> Export
+                                    </button>
+                                </div>
+                                <div id="translation-output" class="translation-output"></div>
+                                <div class="text-controls">
+                                    <button id="undo-btn" title="Undo last edit in output">
+                                        <i class="fas fa-undo"></i> Undo
+                                    </button>
+                                    <button id="redo-btn" title="Redo last undone edit in output">
+                                        <i class="fas fa-redo"></i> Redo
+                                    </button>
+                                    <button id="copy-output-btn" title="Copy translated text to clipboard">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button id="clear-output-btn" title="Clear translated text">
+                                        <i class="fas fa-trash"></i> Clear
+                                    </button>
+                                    <span id="output-word-count" class="stats">0 words</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drafts Tab -->
+                    <div class="tab-content" id="drafts-tab">
+                        <div class="drafts-container">
+                            <!-- Secondary Tab Navigation for Drafts -->
+                            <div class="secondary-tabs">
+                                <button class="secondary-tab-btn active" data-tab="drafts-editor">Editor</button>
+                                <button class="secondary-tab-btn" data-tab="drafts-library">Library</button>
+                                <button class="secondary-tab-btn" data-tab="drafts-publish">Publish</button>
+                            </div>
+
+                            <!-- Secondary Tab Content -->
+                            <div class="secondary-tab-content active" id="drafts-editor-tab">
+                                <div class="drafts-editor-container">
+                                    <!-- Draft Info Bar -->
+                                    <div class="draft-info-bar">
+                                        <div class="draft-title-container">
+                                            <input type="text" id="draft-title" placeholder="Draft title..." class="draft-title-input">
+                                            <span class="draft-status-badge" id="draft-status">Draft</span>
+                                        </div>
+                                        <div class="draft-actions">
+                                            <button id="new-draft-btn" title="Create new draft">
+                                                <i class="fas fa-plus"></i> New
+                                            </button>
+                                            <button id="save-draft-btn" title="Save current draft">
+                                                <i class="fas fa-save"></i> Save
+                                            </button>
+                                            <div class="draft-meta">
+                                                <span id="draft-last-saved">Last saved: Never</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Search and Replace Bar -->
+                                    <div class="search-replace-bar">
+                                        <div class="search-container">
+                                            <input type="text" id="draft-search" placeholder="Search...">
+                                            <button id="draft-search-btn">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                        <div class="replace-container">
+                                            <input type="text" id="draft-replace" placeholder="Replace with...">
+                                            <button id="draft-replace-btn">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </button>
+                                            <button id="draft-replace-all-btn">
+                                                <i class="fas fa-sync-alt"></i> All
+                                            </button>
+                                        </div>
+                                        <div class="search-stats">
+                                            <span id="search-results-count">0 matches</span>
+                                            <button id="prev-match-btn" disabled>
+                                                <i class="fas fa-arrow-up"></i>
+                                            </button>
+                                            <button id="next-match-btn" disabled>
+                                                <i class="fas fa-arrow-down"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Draft Editor -->
+                                    <div id="draft-editor" class="draft-editor"></div>
+
+                                    <!-- Draft Control Bar -->
+                                    <div class="draft-control-bar">
+                                        <div class="draft-stats">
+                                            <span id="draft-word-count">0 words</span>
+                                            <span id="draft-reading-time">0 min read</span>
+                                        </div>
+                                        <div class="draft-version-info">
+                                            <span id="draft-version">Version 1.0</span>
+                                            <button id="draft-history-btn" title="View version history">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                        </div>
+                                        <div class="draft-publish-actions">
+                                            <button id="preview-draft-btn" class="action-btn">
+                                                <i class="fas fa-eye"></i> Preview
+                                            </button>
+                                            <button id="publish-draft-btn" class="primary-btn">
+                                                <i class="fas fa-upload"></i> Publish
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="drafts-library-tab">
+                                <div class="drafts-library-container">
+                                    <!-- Drafts Library Controls -->
+                                    <div class="library-controls">
+                                        <div class="search-bar">
+                                            <input type="text" id="draft-library-search" placeholder="Search drafts...">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                        <div class="library-filters">
+                                            <select id="draft-status-filter">
+                                                <option value="all">All Statuses</option>
+                                                <option value="draft">Drafts</option>
+                                                <option value="review">In Review</option>
+                                                <option value="ready">Ready to Publish</option>
+                                                <option value="published">Published</option>
+                                            </select>
+                                            <select id="draft-sort-by">
+                                                <option value="modified">Last Modified</option>
+                                                <option value="title">Title</option>
+                                                <option value="created">Date Created</option>
+                                            </select>
+                                        </div>
+                                        <div class="tag-filters" id="tag-filters">
+                                            <!-- Tags will be populated here -->
+                                        </div>
+                                        <button id="import-from-translation-btn" class="glow-btn">
+                                            <i class="fas fa-file-import"></i> Import from Translation
+                                        </button>
+                                    </div>
+
+                                    <!-- Drafts List -->
+                                    <div class="drafts-list-container">
+                                        <table class="drafts-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>
+                                                        <input type="checkbox" id="select-all-drafts"
+                                                            title="Select all drafts">
+                                                    </th>
+                                                    <th>Title</th>
+                                                    <th>Status</th>
+                                                    <th>Modified</th>
+                                                    <th>Words</th>
+                                                    <th>Tags</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="drafts-list-body">
+                                                <!-- Draft items will be inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- Batch Actions -->
+                                    <div class="batch-actions">
+                                        <span id="selected-drafts-count">0 selected</span>
+                                        <button id="delete-selected-drafts" class="action-btn" disabled>
+                                            <i class="fas fa-trash-alt"></i> Delete Selected
+                                        </button>
+                                        <button id="export-selected-drafts" class="action-btn" disabled>
+                                            <i class="fas fa-file-export"></i> Export Selected
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="drafts-publish-tab">
+                                <div class="publishing-container">
+                                    <div class="publishing-options">
+                                        <h3>Select Publishing Platform</h3>
+                                        <div class="platform-grid">
+                                            <div class="platform-card" data-platform="webnovel">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-book-open"></i>
+                                                </div>
+                                                <h4>Webnovel</h4>
+                                                <p>Publish your story on Webnovel</p>
+                                            </div>
+                                            <div class="platform-card" data-platform="scribblehub">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-pen-fancy"></i>
+                                                </div>
+                                                <h4>ScribbleHub</h4>
+                                                <p>Share your work on ScribbleHub</p>
+                                            </div>
+                                            <div class="platform-card" data-platform="ao3">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-archive"></i>
+                                                </div>
+                                                <h4>AO3</h4>
+                                                <p>Publish to Archive of Our Own</p>
+                                            </div>
+                                            <div class="platform-card" data-platform="fanfiction">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-fan"></i>
+                                                </div>
+                                                <h4>FanFiction.net</h4>
+                                                <p>Share on FanFiction.net</p>
+                                            </div>
+                                            <div class="platform-card" data-platform="questionablequesting">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-question-circle"></i>
+                                                </div>
+                                                <h4>Questionable Questing</h4>
+                                                <p>Publish to Questionable Questing</p>
+                                            </div>
+                                            <div class="platform-card" data-platform="custom">
+                                                <div class="platform-icon">
+                                                    <i class="fas fa-code"></i>
+                                                </div>
+                                                <h4>Custom HTML</h4>
+                                                <p>Export as custom HTML</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="publish-all-container">
+                                            <button id="publish-all-btn" class="glow-btn">
+                                                <i class="fas fa-cloud-upload-alt"></i> Publish to All Platforms
+                                            </button>
+                                            <div class="platform-selection-toggle">
+                                                <label class="toggle-container" id="select-platforms-toggle">
+                                                    <input type="checkbox" id="enable-platform-selection">
+                                                    <span class="toggle-switch"></span>
+                                                    <span class="toggle-label">Select platforms before publishing</span>
+                                                </label>
+                                            </div>
+                                            <div class="platform-selection-tip">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span>When enabled, you'll be prompted to select which platforms to publish to.</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="platform-settings" id="platform-settings">
+                                            <p>Select a platform above to configure publishing settings</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="publishing-history">
+                                        <h3>Publishing History</h3>
+                                        <div class="publish-history-list" id="publish-history-list">
+                                            <p>No publishing history available</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Glossary Tab -->
+                    <div class="tab-content" id="glossary-tab">
+                        <div class="glossary-container">
+                            <!-- Secondary Tab Navigation for Glossary -->
+                            <div class="secondary-tabs">
+                                <button class="secondary-tab-btn active" data-tab="glossary-terms">Terms</button>
+                                <button class="secondary-tab-btn" data-tab="glossary-generator">Generator</button>
+                                <button class="secondary-tab-btn"
+                                    data-tab="glossary-import-export">Import/Export</button>
+                            </div>
+
+                            <!-- Secondary Tab Content -->
+                            <div class="secondary-tab-content active" id="glossary-terms-tab">
+                                <div class="glossary-controls">
+                                    <div class="search-bar">
+                                        <input type="text" id="glossary-search" placeholder="Search terms...">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <div class="glossary-filters">
+                                        <select id="glossary-category-filter">
+                                            <option value="all">All Categories</option>
+                                            <option value="character">Characters</option>
+                                            <option value="location">Locations</option>
+                                            <option value="technique">Techniques</option>
+                                            <option value="item">Items</option>
+                                            <option value="concept">Concepts</option>
+                                            <option value="title">Titles</option>
+                                            <option value="organization">Organizations</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <button id="delete-selected-terms" class="action-btn" disabled>
+                                        <i class="fas fa-trash-alt"></i> Delete Selected (<span
+                                            id="selected-count">0</span>)
+                                    </button>
+                                    <button id="add-term-btn" class="glow-btn">
+                                        <i class="fas fa-plus"></i> Add Term
+                                    </button>
+                                </div>
+
+                                <div class="glossary-table-container">
+                                    <table class="glossary-table">
+                                        <thead>
+                                            <tr>
+                                                <th>
+                                                    <input type="checkbox" id="select-all-terms"
+                                                        title="Select all glossary terms">
+                                                </th>
+                                                <th>Chinese Term</th>
+                                                <th>Translation</th>
+                                                <th>Category</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="glossary-terms-body">
+                                            <!-- Glossary terms will be inserted here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="glossary-generator-tab">
+                                <div class="generator-description">
+                                    <p>The AI Glossary Generator extracts important terms from your text and suggests
+                                        translations. You
+                                        can edit and add these to your glossary.</p>
+                                </div>
+                                <div class="fandom-input-container">
+                                    <label for="fandom-context">Fandom/Universe:</label>
+                                    <input type="text" id="fandom-context" placeholder="e.g., Naruto, Pokemon etc.">
+                                </div>
+                                <div class="generator-controls">
+                                    <button id="generate-glossary-btn" class="glow-btn">
+                                        <i class="fas fa-magic"></i> Generate from Current Text
+                                    </button>
+                                    <div class="generator-options">
+                                        <label>
+                                            <input type="checkbox" id="auto-add-terms" checked>
+                                            Automatically add new terms
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="generated-terms-container">
+                                    <h4>Generated Terms</h4>
+                                    <div id="generated-terms-list" class="generated-terms-list">
+                                        <!-- Generated terms will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="glossary-import-export-tab">
+                                <div class="import-export-controls">
+                                    <div class="export-section">
+                                        <h4>Export Glossary</h4>
+                                        <button id="export-glossary-btn" class="action-btn">
+                                            <i class="fas fa-download"></i> Export as JSON
+                                        </button>
+                                    </div>
+                                    <div class="import-section">
+                                        <h4>Import Glossary</h4>
+                                        <button id="import-glossary-btn" class="action-btn">
+                                            <i class="fas fa-upload"></i> Import from JSON
+                                        </button>
+                                        <input type="file" id="import-glossary-file" accept=".json"
+                                            style="display: none;">
+                                        <div class="import-options">
+                                            <label>
+                                                <input type="radio" name="import-strategy" value="merge" checked>
+                                                Merge with existing glossary
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="import-strategy" value="replace">
+                                                Replace existing glossary
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chapter Fetcher Tab -->
+                    <div class="tab-content" id="chapter-fetcher-tab">
+                        <div class="chapter-fetcher-container">
+                            <!-- Secondary Tab Navigation for Chapter Fetcher -->
+                            <div class="secondary-tabs">
+                                <button class="secondary-tab-btn active" data-tab="fetch-chapters">Fetch
+                                    Chapters</button>
+                                <button class="secondary-tab-btn" data-tab="chapter-library">Chapter Library</button>
+                                <button class="secondary-tab-btn" data-tab="website-config">Website Config</button>
+                            </div>
+
+                            <!-- Secondary Tab Content -->
+                            <div class="secondary-tab-content active" id="fetch-chapters-tab">
+                                <div class="chapter-fetch-controls">
+                                    <div class="url-input-container">
+                                        <input type="text" id="chapter-url"
+                                            placeholder="Enter chapter URL (e.g., https://www.trxs.cc/tongren/7209/236.html)">
+                                        <input type="number" id="chapter-count" min="1" value="1"
+                                            title="Number of chapters to fetch">
+                                        <button id="fetch-chapter-btn" class="glow-btn">
+                                            <i class="fas fa-download"></i> Fetch Chapters
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="chapter-preview">
+                                    <div class="chapter-info">
+                                        <h4 id="chapter-name">No chapter selected</h4>
+                                        <div class="chapter-navigation">
+                                            <button id="prev-chapter-btn" disabled>
+                                                <i class="fas fa-arrow-left"></i> Previous
+                                            </button>
+                                            <button id="next-chapter-btn" disabled>
+                                                <i class="fas fa-arrow-right"></i> Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <textarea id="chapter-text" placeholder="Chapter text will appear here"
+                                        readonly></textarea>
+                                    <div class="chapter-actions">
+                                        <button id="copy-chapter-btn">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                        <button id="clear-chapter-btn">
+                                            <i class="fas fa-trash"></i> Clear
+                                        </button>
+                                        <button id="import-to-input-btn">
+                                            <i class="fas fa-arrow-up"></i> To Input
+                                        </button>
+                                        <button id="translate-all-btn">
+                                            <i class="fas fa-globe"></i> Translate All
+                                        </button>
+                                        <span id="chapter-word-count" class="stats">0 words</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="chapter-library-tab">
+                                <div class="library-controls">
+                                    <div class="search-bar">
+                                        <input type="text" id="chapter-search" placeholder="Search chapters...">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <button id="delete-selected-chapters" class="action-btn">
+                                        <i class="fas fa-trash"></i> Delete Selected
+                                    </button>
+                                </div>
+                                <div class="chapter-library-list">
+                                    <table class="chapter-table">
+                                        <thead>
+                                            <tr>
+                                                <th><input type="checkbox" id="select-all-chapters"></th>
+                                                <th>Title</th>
+                                                <th>Source</th>
+                                                <th>Date Added</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="chapter-list-body">
+                                            <!-- Chapter list will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="website-config-tab">
+                                <div class="website-config-description">
+                                    <p>Configure website scraping settings to support additional websites for chapter
+                                        fetching.</p>
+                                </div>
+                                <div class="website-list">
+                                    <!-- Website configurations will be populated here -->
+                                </div>
+                                <button id="add-website-btn" class="glow-btn">
+                                    <i class="fas fa-plus"></i> Add Website Configuration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div class="tab-content" id="settings-tab">
+                        <div class="settings-container">
+                            <!-- Secondary Tab Navigation for Settings -->
+                            <div class="secondary-tabs">
+                                <button class="secondary-tab-btn active"
+                                    data-tab="appearance-settings">Appearance</button>
+                                <button class="secondary-tab-btn" data-tab="api-settings">API Settings</button>
+                                <button class="secondary-tab-btn" data-tab="translation-settings">Translation</button>
+                            </div>
+
+                            <!-- Secondary Tab Content -->
+                            <div class="secondary-tab-content active" id="appearance-settings-tab">
+                                <div class="settings-section">
+                                    <h4>Theme</h4>
+                                    <div class="theme-selector">
+                                        <div class="theme-option">
+                                            <input type="radio" id="dark-theme" name="theme" value="dark" checked>
+                                            <label for="dark-theme">Dark</label>
+                                        </div>
+                                        <div class="theme-option">
+                                            <input type="radio" id="light-theme" name="theme" value="light">
+                                            <label for="light-theme">Light</label>
+                                        </div>
+                                    </div>
+                                    <div class="color-picker-container">
+                                        <label for="accent-color">Accent Color</label>
+                                        <input type="color" id="accent-color" value="#00aaff">
+                                    </div>
+                                    <div class="ui-options">
+                                        <label>
+                                            <input type="checkbox" id="enable-animations" checked>
+                                            Enable UI Animations
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" id="enable-sounds">
+                                            Enable UI Sounds
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="api-settings-tab">
+                                <div class="settings-section">
+                                    <h4>ChatGPT Connection</h4>
+                                    <div class="chatgpt-settings">
+                                        <button id="chatgpt-login-btn" class="action-btn">
+                                            <i class="fas fa-sign-in-alt"></i> Login to ChatGPT
+                                        </button>
+                                        <button id="verify-chatgpt-btn" class="action-btn">
+                                            <i class="fas fa-check"></i> Verify Connection
+                                        </button>
+                                        <button id="chatgpt-link-btn" class="action-btn">
+                                            <i class="fas fa-link"></i> Set Conversation Link
+                                        </button>
+                                        <button id="custom-instructions-btn" class="action-btn">
+                                            <i class="fas fa-cog"></i> Edit Instructions
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="settings-section">
+                                    <h4>OpenRouter API</h4>
+                                    <div class="openrouter-settings">
+                                        <div class="api-key-input">
+                                            <label for="openrouter-api-key">API Key</label>
+                                            <input type="password" id="openrouter-api-key"
+                                                placeholder="Enter your OpenRouter API key">
+                                            <button id="save-api-key-btn" class="small-btn">Save</button>
+                                        </div>
+                                        <div class="model-selector">
+                                            <label for="openrouter-model">Model</label>
+                                            <select id="openrouter-model">
+                                                <option value="">Select a model</option>
+                                                <!-- Models will be populated here -->
+                                            </select>
+                                            <button id="refresh-models-btn" class="small-btn">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
+                                        <button id="test-openrouter-btn" class="action-btn">Test Connection</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="secondary-tab-content" id="translation-settings-tab">
+                                <div class="settings-section">
+                                    <h4>Translation Settings</h4>
+                                    <div class="translation-options">
+                                        <div class="setting-item">
+                                            <label for="default-translation-method">Default Translation Method</label>
+                                            <select id="default-translation-method">
+                                                <option value="chatgpt">ChatGPT</option>
+                                                <option value="openrouter">OpenRouter API</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-item">
+                                            <label for="default-chunking-strategy">Default Chunking Strategy</label>
+                                            <select id="default-chunking-strategy">
+                                                <option value="auto">Auto Detect</option>
+                                                <option value="chapter">Chapter-based</option>
+                                                <option value="word-count">Word Count</option>
+                                                <option value="none">No Chunking</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-item">
+                                            <label for="default-chunk-size">Default Chunk Size (words)</label>
+                                            <input type="number" id="default-chunk-size" min="100" max="5000"
+                                                value="1000">
+                                        </div>
+                                        <div class="setting-item">
+                                            <label>
+                                                <input type="checkbox" id="auto-verify" checked>
+                                                Auto-verify translations
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Status Bar -->
+            <footer class="status-bar">
+                <div class="status-info">
+                    <span id="word-count">0 words</span> |
+                    <span id="reading-time">0 min read</span> |
+                    <span id="current-project">No Project</span>
+                </div>
+                <div class="status-right">
+                    <span id="last-action">Ready</span>
+                    <button id="toggle-status-bar-btn" title="Toggle status bar">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="custom-instructions-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Edit Custom Instructions</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="modal-custom-instructions"
+                    placeholder="Enter custom instructions for ChatGPT..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="save-instructions-btn" class="primary-btn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button id="close-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="chatgpt-link-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-link"></i> Set ChatGPT Conversation Link</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="modal-chatgpt-link"
+                    placeholder="Enter ChatGPT conversation URL (e.g., https://chatgpt.com/c/12345)">
+            </div>
+            <div class="modal-footer">
+                <button id="save-chatgpt-link-btn" class="primary-btn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button id="close-chatgpt-link-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="add-term-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-book"></i> Add Glossary Term</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="term-chinese">Chinese Term</label>
+                    <input type="text" id="term-chinese" placeholder="Enter Chinese term">
+                </div>
+                <div class="form-group">
+                    <label for="term-translation">Translation</label>
+                    <input type="text" id="term-translation" placeholder="Enter English translation">
+                </div>
+                <div class="form-group">
+                    <label for="term-category">Category</label>
+                    <select id="term-category">
+                        <option value="character">Character</option>
+                        <option value="location">Location</option>
+                        <option value="technique">Technique</option>
+                        <option value="item">Item</option>
+                        <option value="concept">Concept</option>
+                        <option value="title">Title</option>
+                        <option value="organization">Organization</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="term-notes">Notes (optional)</label>
+                    <textarea id="term-notes" placeholder="Enter additional notes or context"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-term-btn" class="primary-btn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button id="close-term-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="add-website-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-globe"></i> Add Website Configuration</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="website-name">Website Name</label>
+                    <input type="text" id="website-name" placeholder="e.g., Novel Site">
+                </div>
+                <div class="form-group">
+                    <label for="website-base-url">Base URL</label>
+                    <input type="text" id="website-base-url" placeholder="e.g., https://example.com">
+                </div>
+                <div class="form-group">
+                    <label for="website-url-pattern">URL Pattern (RegEx)</label>
+                    <input type="text" id="website-url-pattern"
+                        placeholder="e.g., ^https://example\.com/novel/\d+/\d+\.html$">
+                </div>
+                <div class="form-group">
+                    <label for="website-chapter-content">Chapter Content Selector</label>
+                    <input type="text" id="website-chapter-content" placeholder="e.g., .chapter-content">
+                </div>
+                <div class="form-group">
+                    <label for="website-chapter-title">Chapter Title Selector</label>
+                    <input type="text" id="website-chapter-title" placeholder="e.g., .chapter-title">
+                </div>
+                <div class="form-group">
+                    <label for="website-prev-chapter">Previous Chapter Selector</label>
+                    <input type="text" id="website-prev-chapter" placeholder="e.g., .prev-chapter">
+                </div>
+                <div class="form-group">
+                    <label for="website-next-chapter">Next Chapter Selector</label>
+                    <input type="text" id="website-next-chapter" placeholder="e.g., .next-chapter">
+                </div>
+                <div class="form-group">
+                    <button id="test-website-config-btn" class="secondary-btn">
+                        <i class="fas fa-vial"></i> Test Configuration
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-website-btn" class="primary-btn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button id="close-website-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="help-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question"></i> Help</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <h4>Getting Started</h4>
+                <ol>
+                    <li>Create a new project or select an existing one.</li>
+                    <li>Configure your translation method in the Settings tab.</li>
+                    <li>Enter Chinese text in the input area or use the Chapter Fetcher.</li>
+                    <li>Click "Translate" to generate a translation.</li>
+                    <li>Use the Glossary to maintain consistent terminology.
+                </ol>
+
+                <h4>Keyboard Shortcuts</h4>
+                <div class="shortcuts-grid">
+                    <div>Ctrl+T</div>
+                    <div>Translate</div>
+                    <div>Ctrl+F</div>
+                    <div>Fetch Chapter</div>
+                    <div>Ctrl+S</div>
+                    <div>Export</div>
+                    <div>Ctrl+1-4</div>
+                    <div>Switch Tabs</div>
+                </div>
+
+                <h4>Features</h4>
+                <ul>
+                    <li><strong>Translator:</strong> Translate Chinese text to English</li>
+                    <li><strong>Glossary:</strong> Manage terminology for consistent translations</li>
+                    <li><strong>Drafts:</strong> Create and manage draft documents for publishing</li>
+                    <li><strong>Chapter Fetcher:</strong> Fetch chapters from supported websites</li>
+                    <li><strong>Settings:</strong> Configure translation methods and app appearance</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="close-help-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="verification-results-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="verification-modal-title">Translation Quality</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="verification-scores">
+                    <div class="score-item">
+                        <div class="score-label">Accuracy</div>
+                        <div id="accuracy-score" class="score">--</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Completeness</div>
+                        <div id="completeness-score" class="score">--</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Glossary Compliance</div>
+                        <div id="glossary-score" class="score">--</div>
+                    </div>
+                </div>
+
+                <h4>Issues Found</h4>
+                <ul id="verification-issues-list" class="issues-list">
+                    <li>Loading issues...</li>
+                </ul>
+
+                <h4>Glossary Compliance Issues</h4>
+                <ul id="glossary-issues-list" class="glossary-issues-list">
+                    <li>Loading glossary issues...</li>
+                </ul>
+
+                <h4>Missing Content</h4>
+                <ul id="missing-content-list" class="missing-content-list">
+                    <li>Loading missing content...</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="close-verification-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draft-related Modals -->
+    <div class="modal" id="draft-version-history-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-history"></i> Draft Version History</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="version-list" id="version-list">
+                    <!-- Version history will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="restore-version-btn" class="primary-btn" disabled>
+                    <i class="fas fa-undo"></i> Restore Selected Version
+                </button>
+                <button id="close-version-history-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="draft-preview-modal">
+        <div class="modal-content full-size-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-eye"></i> Draft Preview</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-wrapper">
+                    <div class="preview-header">
+                        <h1 id="preview-title">Draft Title</h1>
+                        <div class="preview-meta">
+                            <span id="preview-word-count">0 words</span>
+                            <span id="preview-reading-time">0 min read</span>
+                        </div>
+                    </div>
+                    <div id="preview-content" class="preview-content"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-preview-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="wordpress-publish-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-wordpress"></i> Publish to WordPress</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="wp-site-url">WordPress Site URL</label>
+                    <input type="text" id="wp-site-url" placeholder="https://yourblog.wordpress.com">
+                </div>
+                <div class="form-group">
+                    <label for="wp-username">Username or Application Password Name</label>
+                    <input type="text" id="wp-username" placeholder="Username">
+                </div>
+                <div class="form-group">
+                    <label for="wp-password">Password or Application Password</label>
+                    <input type="password" id="wp-password" placeholder="Password">
+                </div>
+                <div class="form-group">
+                    <label for="wp-category">Category</label>
+                    <select id="wp-category">
+                        <option value="">Select a category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="wp-tags">Tags (comma-separated)</label>
+                    <input type="text" id="wp-tags" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="wp-draft">
+                        Publish as draft (not public)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="wp-publish-btn" class="primary-btn">
+                    <i class="fas fa-upload"></i> Publish
+                </button>
+                <button id="wp-test-connection-btn" class="secondary-btn">
+                    <i class="fas fa-vial"></i> Test Connection
+                </button>
+                <button id="close-wp-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="medium-publish-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-medium"></i> Publish to Medium</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="medium-token">Integration Token</label>
+                    <input type="text" id="medium-token" placeholder="Enter your Medium integration token">
+                </div>
+                <div class="form-group">
+                    <label for="medium-tags">Tags (up to 5)</label>
+                    <input type="text" id="medium-tags" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="form-group">
+                    <label>Content Format</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="medium-format" value="html" checked>
+                            HTML
+                        </label>
+                        <label>
+                            <input type="radio" name="medium-format" value="markdown">
+                            Markdown
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Publish Status</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="medium-publish-status" value="draft" checked>
+                            Draft
+                        </label>
+                        <label>
+                            <input type="radio" name="medium-publish-status" value="public">
+                            Public
+                        </label>
+                        <label>
+                            <input type="radio" name="medium-publish-status" value="unlisted">
+                            Unlisted
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="medium-publish-btn" class="primary-btn">
+                    <i class="fas fa-upload"></i> Publish
+                </button>
+                <button id="medium-test-connection-btn" class="secondary-btn">
+                    <i class="fas fa-vial"></i> Test Connection
+                </button>
+                <button id="close-medium-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="ghost-publish-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-ghost"></i> Publish to Ghost</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="ghost-url">Ghost Site URL</label>
+                    <input type="text" id="ghost-url" placeholder="https://yourblog.ghost.io">
+                </div>
+                <div class="form-group">
+                    <label for="ghost-key">Admin API Key</label>
+                    <input type="text" id="ghost-key" placeholder="Enter your Ghost Admin API Key">
+                </div>
+                <div class="form-group">
+                    <label for="ghost-tags">Tags (comma-separated)</label>
+                    <input type="text" id="ghost-tags" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="form-group">
+                    <label>Publish Status</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="ghost-status" value="draft" checked>
+                            Draft
+                        </label>
+                        <label>
+                            <input type="radio" name="ghost-status" value="published">
+                            Published
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="ghost-feature">
+                        Feature this post
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="ghost-publish-btn" class="primary-btn">
+                    <i class="fas fa-upload"></i> Publish
+                </button>
+                <button id="ghost-test-connection-btn" class="secondary-btn">
+                    <i class="fas fa-vial"></i> Test Connection
+                </button>
+                <button id="close-ghost-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="custom-html-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-code"></i> Export as Custom HTML</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="custom-html-options">HTML Options</label>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="include-css" checked>
+                            Include basic CSS
+                        </label>
+                        <label>
+                            <input type="checkbox" id="include-meta" checked>
+                            Include meta information
+                        </label>
+                        <label>
+                            <input type="checkbox" id="include-responsive" checked>
+                            Make responsive
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="custom-html-output">HTML Output</label>
+                    <textarea id="custom-html-output" readonly></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="copy-html-btn" class="primary-btn">
+                    <i class="fas fa-copy"></i> Copy to Clipboard
+                </button>
+                <button id="download-html-btn" class="secondary-btn">
+                    <i class="fas fa-download"></i> Download HTML File
+                </button>
+                <button id="close-html-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="draft-tag-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-tags"></i> Manage Tags</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="draft-tags">Draft Tags (comma-separated)</label>
+                    <input type="text" id="draft-tags" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="common-tags" id="common-tags">
+                    <!-- Common tags will be displayed here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-tags-btn" class="primary-btn">
+                    <i class="fas fa-save"></i> Save Tags
+                </button>
+                <button id="close-tag-modal-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loading-message">Processing...</p>
+    </div>
+
+    <div id="notification" class="notification">
+        <i class="notification-icon"></i>
+        <span id="notification-message"></span>
+        <button class="notification-close">×</button>
+    </div>
+
+    <!-- Load Quill library first as it's a dependency -->
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js"></script>
+
+    <!-- Main application script as ES module -->
+    <script type="module" src="js/main.js"></script>
+
+    <!-- Add new modals before the closing body tag -->
+    <div class="modal" id="scheduling-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-calendar-alt"></i> Schedule Publication</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="enable-scheduling">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-label">Schedule publication for later</span>
+                    </label>
+                </div>
+                
+                <div id="scheduling-options" style="display:none">
+                    <div class="form-group">
+                        <label for="scheduled-date">Publication Date:</label>
+                        <input type="date" id="scheduled-date" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduled-time">Publication Time (GMT+8):</label>
+                        <input type="time" id="scheduled-time" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="folder-name">Project/Folder Name:</label>
+                    <input type="text" id="folder-name" class="form-control" placeholder="Enter project or folder name">
+                    <small>This will be used to match your story on the publishing platform.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="update-draft-status" checked>
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-label">Set draft status to "Published" after publishing</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-publish-btn" class="primary-btn">
+                    <i class="fas fa-upload"></i> Publish Now
+                </button>
+                <button id="cancel-publish-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="platform-selection-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-check-square"></i> Select Publishing Platforms</h3>
+                <button class="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Select the platforms you want to publish to:</p>
+                <div class="platform-checkboxes">
+                    <!-- Will be dynamically populated -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-platform-selection-btn" class="primary-btn">
+                    <i class="fas fa-check"></i> Confirm Selection
+                </button>
+                <button id="cancel-platform-selection-btn" class="secondary-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,207 @@
+ 
+/**
+ * tabs.css
+ * Tab navigation and content styles for QuillSync AI
+ */
+
+/* Tab Navigation */
+.tab-nav {
+    display: flex;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    z-index: 4;
+  }
+  
+  /* Tab Buttons */
+  .tab-btn {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    position: relative;
+    min-height: unset;
+    border-radius: 0;
+  }
+  
+  .tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent-color);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform var(--transition-fast);
+  }
+  
+  .tab-btn:hover {
+    color: var(--text-primary);
+    background: none;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .tab-btn.active {
+    color: var(--accent-color);
+  }
+  
+  .tab-btn.active::after {
+    transform: scaleX(1);
+  }
+  
+  .tab-btn i {
+    font-size: 1.1rem;
+  }
+  
+  /* Active Tab Button Animation */
+  .tab-btn.active {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .tab-btn.active::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: var(--accent-color);
+    opacity: 0.1;
+    top: 0;
+    left: 0;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s ease-out;
+    z-index: -1;
+  }
+  
+  .tab-btn.active:hover::before {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  
+  /* Tab Content Container */
+  .tab-content-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  /* Individual Tab Content */
+  .tab-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+    overflow-y: auto;
+    padding: var(--spacing-md);
+  }
+  
+  .tab-content.active {
+    opacity: 1;
+    visibility: visible;
+    z-index: 2;
+  }
+  
+  /* Secondary Tabs */
+  .secondary-tabs {
+    display: flex;
+    margin-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .secondary-tab-btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    position: relative;
+    min-height: unset;
+    border-radius: 0;
+  }
+  
+  .secondary-tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent-color);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform var(--transition-fast);
+  }
+  
+  .secondary-tab-btn:hover {
+    color: var(--text-primary);
+    background: none;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .secondary-tab-btn.active {
+    color: var(--accent-color);
+  }
+  
+  .secondary-tab-btn.active::after {
+    transform: scaleX(1);
+  }
+  
+  .secondary-tab-content {
+    display: none;
+  }
+  
+  .secondary-tab-content.active {
+    display: block;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .tab-btn {
+      padding: var(--spacing-sm);
+      font-size: 0.9rem;
+      flex-direction: column;
+      flex: 1;
+      justify-content: center;
+    }
+    
+    .tab-btn span {
+      display: none;
+    }
+    
+    .tab-btn i {
+      font-size: 1.2rem;
+    }
+    
+    .secondary-tabs {
+      overflow-x: auto;
+      padding-bottom: var(--spacing-xs);
+    }
+    
+    .secondary-tab-btn {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      white-space: nowrap;
+    }
+    
+    .tab-content {
+      padding: var(--spacing-sm);
+    }
+  }

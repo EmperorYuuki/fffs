@@ -1,0 +1,148 @@
+ 
+/**
+ * status-bar.css
+ * Status bar styles for QuillSync AI
+ */
+
+/* Status Bar Container */
+.status-bar {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    z-index: 5;
+  }
+  
+  /* Status Information */
+  .status-info {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+  }
+  
+  .status-info > span {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+  
+  .status-info > span i {
+    font-size: 0.9rem;
+    color: var(--accent-color);
+  }
+  
+  /* Right Side Controls */
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+  
+  /* Status Bar Toggle Button */
+  #toggle-status-bar-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+    padding: 0;
+    min-height: auto;
+  }
+  
+  #toggle-status-bar-btn:hover {
+    color: var(--accent-color);
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Status Types */
+  .status-word-count,
+  .status-reading-time,
+  .status-project {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .status-word-count i {
+    color: var(--info);
+  }
+  
+  .status-reading-time i {
+    color: var(--accent-color);
+  }
+  
+  .status-project i {
+    color: var(--success);
+  }
+  
+  /* Last Action Display */
+  #last-action {
+    font-style: italic;
+    transition: color var(--transition-fast);
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  #last-action.success {
+    color: var(--success);
+  }
+  
+  #last-action.warning {
+    color: var(--warning);
+  }
+  
+  #last-action.error {
+    color: var(--error);
+  }
+  
+  /* Collapsed Status Bar */
+  .status-bar.collapsed {
+    height: 10px;
+    overflow: hidden;
+  }
+  
+  .status-bar.collapsed .status-info,
+  .status-bar.collapsed .status-right {
+    display: none;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .status-bar {
+      flex-direction: column;
+      height: auto;
+      padding: var(--spacing-xs);
+    }
+    
+    .status-info {
+      justify-content: center;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    
+    .status-right {
+      width: 100%;
+      justify-content: center;
+      margin-top: var(--spacing-xs);
+    }
+    
+    .status-info > span {
+      font-size: 0.75rem;
+    }
+    
+    #last-action {
+      max-width: 200px;
+      text-align: center;
+    }
+  }
