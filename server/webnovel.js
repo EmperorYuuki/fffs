@@ -434,6 +434,63 @@ app.post('/terminate', async (req, res) => {
     res.status(200).json({ message: `WEBNOVEL PROCESS TERMINATED FOR REQUEST ${requestId}.` });
 });
 
+app.get('/verify-cookie', async (req, res) => {
+    const requestId = req.query.requestId;
+    let browser = activeRequests.get(requestId);
+    
+    try {
+        // If no browser exists, create one
+        if (!browser) {
+            browser = await launchBrowser();
+            activeRequests.set(requestId, browser);
+        }
+        
+        const page = await browser.newPage();
+        
+        // Set cookies from file if they exist
+        if (fs.existsSync(COOKIE_FILE)) {
+            const cookies = JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf8'));
+            await page.setCookie(...cookies);
+        } else {
+            await browser.close();
+            activeRequests.delete(requestId);
+            return res.json({ valid: false });
+        }
+
+        // Navigate to a page that requires login
+        await gotoWithRetry(page, 'https://inkstone.webnovel.com/novels/dashboard', 3, requestId);
+        
+        // Check if we're still logged in
+        const isLoggedIn = await evaluateWithTimeout(page, () => document.location.href.includes('inkstone.webnovel.com/novels/dashboard'), requestId);
+        
+        if (isLoggedIn) {
+            // Get series data
+            const seriesData = await evaluateWithTimeout(page, () => {
+                const rows = document.querySelectorAll('.ant-table-tbody tr');
+                return Array.from(rows).map(row => {
+                    const seriesId = row.getAttribute('data-row-key');
+                    const nameElement = row.querySelector('a.link_btn--WIl9C.t_title_small') || row.querySelector('span._lock--oSDfq.t_title_small');
+                    const seriesName = nameElement?.textContent.trim();
+                    return seriesId && seriesName ? { id: seriesId, name: seriesName } : null;
+                }).filter(Boolean);
+            }, requestId);
+            
+            await page.close();
+            return res.json({ valid: true, series: seriesData });
+        }
+        
+        await page.close();
+        return res.json({ valid: false });
+    } catch (error) {
+        log(`Cookie verification error for request ${requestId}: ${error.message}`);
+        if (browser) {
+            await browser.close();
+            activeRequests.delete(requestId);
+        }
+        return res.json({ valid: false });
+    }
+});
+
 app.listen(PORT, () => {
     log(`WEBNOVEL SERVER RUNNING ON HTTP://LOCALHOST:${PORT}`);
 });
