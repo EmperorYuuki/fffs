@@ -57,6 +57,9 @@ class PublishingService {
     // Track active requests
     this.activeRequests = new Map();
     
+    // Track login attempts by platform
+    this.loginAttempts = new Map();
+    
     // Track login status by platform
     this.loginStatus = this.loadLoginStatus();
     
@@ -196,10 +199,18 @@ class PublishingService {
       return { success: false, message: `Unknown platform: ${platform}` };
     }
     
+    // Check if there's already an active login attempt for this platform
+    if (this.loginAttempts.has(platform)) {
+      return { success: false, message: `Login attempt already in progress for ${this.platformInfo[platform].name}` };
+    }
+    
     // Generate a request ID
     const requestId = this.generateRequestId(platform);
     
     try {
+      // Mark this platform as having an active login attempt
+      this.loginAttempts.set(platform, requestId);
+      
       UIService.toggleLoading(true, `Logging in to ${this.platformInfo[platform].name}...`);
       
       // Store the active request
@@ -240,16 +251,18 @@ class PublishingService {
         this.saveSeriesData(platform, data.series);
       }
       
-      // Remove the active request
+      // Remove the active request and login attempt
       this.activeRequests.delete(requestId);
+      this.loginAttempts.delete(platform);
       
       UIService.toggleLoading(false);
       return { success: true, message: data.message || `Successfully logged in to ${this.platformInfo[platform].name}` };
     } catch (error) {
       console.error(`Login error for ${platform}:`, error);
       
-      // Remove the active request
+      // Remove the active request and login attempt
       this.activeRequests.delete(requestId);
+      this.loginAttempts.delete(platform);
       
       UIService.toggleLoading(false);
       return { success: false, message: error.message || `Failed to login to ${this.platformInfo[platform].name}` };
@@ -305,12 +318,32 @@ class PublishingService {
       
       // Get tags if available
       const tags = draft.tags || [];
+
+      // Parse the content if it's in Quill delta format
+      let content = draft.content;
+      try {
+        const contentObj = JSON.parse(draft.content);
+        if (contentObj.ops) {
+          // Properly handle formatting
+          content = contentObj.ops.map(op => {
+            let text = op.insert || '';
+            // Preserve newlines and spacing
+            if (text.endsWith('\n')) {
+              return text;
+            }
+            return text.replace(/\n/g, '\n\n'); // Double newline for paragraphs
+          }).join('');
+        }
+      } catch (e) {
+        // If parsing fails, use content as is
+        console.log('Content is not in Quill delta format, using as is');
+      }
       
       // Prepare the request body
       const requestBody = {
         title: draft.title,
-        content: draft.content,
-        folderName: options.folderName || draft.projectTitle || 'My Story',
+        content: content,
+        folderName: draft.projectTitle || draft.title, // Use project title or fall back to draft title
         tags: tags,
         requestId
       };
@@ -377,54 +410,63 @@ class PublishingService {
    * @param {Object} options - Publishing options
    * @returns {Object} Result with success/error message
    */
-  schedulePublication(platform, draft, scheduledTime, options = {}) {
+  async schedulePublication(platform, draft, scheduledTime, options = {}) {
     try {
-      if (platform !== 'all' && !this.platformInfo[platform]) {
-        return { success: false, message: `Unknown platform: ${platform}` };
-      }
-      
-      // Validate the scheduled time
-      if (!(scheduledTime instanceof Date) || isNaN(scheduledTime.getTime())) {
+      if (!(scheduledTime instanceof Date)) {
         return { success: false, message: 'Invalid scheduled time' };
       }
+
+      // Convert GMT+8 time to UTC for storage
+      const utcTime = new Date(scheduledTime.getTime() - ((8 * 60) * 60 * 1000));
       
-      // Create the scheduled publication
-      const scheduledPublication = {
-        id: this.generateUniqueId('schedule'),
-        platform,
-        draftId: draft.id,
-        scheduledTime: scheduledTime.toISOString(),
-        options,
-        status: 'scheduled',
-        attempts: 0
-      };
-      
-      // Add to scheduled publications
-      this.scheduledPublications.push(scheduledPublication);
-      this.saveScheduledPublications();
-      
-      // Add to draft's publish history
-      const publishHistory = draft.publishHistory || [];
-      publishHistory.push({
-        platform: platform === 'all' ? 'Multiple Platforms' : platform,
-        timestamp: new Date().toISOString(),
-        status: 'scheduled',
-        scheduledTime: scheduledTime.toISOString(),
-        message: `Scheduled for publication on ${scheduledTime.toLocaleString()}`
+      // Format times for display
+      const gmt8TimeStr = scheduledTime.toLocaleString('en-US', { 
+        timeZone: 'Asia/Singapore',
+        dateStyle: 'medium',
+        timeStyle: 'short'
       });
       
-      draft.publishHistory = publishHistory;
-      
-      // Save the updated draft
-      StorageService.saveItem('drafts', draft);
-      
+      const utcTimeStr = utcTime.toLocaleString('en-US', {
+        timeZone: 'UTC',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+
+      // Add to scheduled publications array
+      const scheduledPublication = {
+        platform,
+        draftId: draft.id,
+        scheduledTime: utcTime,
+        options
+      };
+
+      this.scheduledPublications.push(scheduledPublication);
+
+      // Add to draft's publish history
+      if (!draft.publishHistory) {
+        draft.publishHistory = [];
+      }
+
+      draft.publishHistory.push({
+        platform,
+        status: 'scheduled',
+        timestamp: new Date(),
+        message: `Scheduled for publication at ${gmt8TimeStr} (GMT+8)`
+      });
+
+      // Save draft to update history
+      await StorageService.saveItem('drafts', draft);
+
       return {
         success: true,
-        message: `Publication scheduled for ${scheduledTime.toLocaleString()}`
+        message: `Publication scheduled for ${gmt8TimeStr} (GMT+8)`
       };
     } catch (error) {
-      console.error('Schedule publication error:', error);
-      return { success: false, message: error.message || 'Failed to schedule publication' };
+      console.error('Error scheduling publication:', error);
+      return {
+        success: false,
+        message: 'Error scheduling publication'
+      };
     }
   }
   
@@ -439,14 +481,22 @@ class PublishingService {
       return;
     }
     
+    // Get current time in GMT+8
     const now = new Date();
+    const userOffsetMinutes = now.getTimezoneOffset();
+    const gmt8OffsetMinutes = -480; // GMT+8 in minutes
+    const diffMinutes = gmt8OffsetMinutes - userOffsetMinutes;
+    const gmt8Now = new Date(now.getTime() + (diffMinutes * 60 * 1000));
+    
     const updatedSchedule = [];
     
     for (const publication of this.scheduledPublications) {
+      // Convert stored UTC time to GMT+8 for comparison
       const scheduledTime = new Date(publication.scheduledTime);
+      const gmt8ScheduledTime = new Date(scheduledTime.getTime() + (8 * 60 * 60 * 1000));
       
       // Skip if not yet time to publish
-      if (scheduledTime > now) {
+      if (gmt8ScheduledTime > gmt8Now) {
         updatedSchedule.push(publication);
         continue;
       }
@@ -619,17 +669,73 @@ class PublishingService {
   }
   
   /**
-   * Clean up the service before unloading
+   * Get publishing options for a platform
+   * @param {string} platform - Platform ID
+   * @returns {Object} Publishing options configuration
    */
-  cleanup() {
-    // Clear the schedule poller
-    if (this.schedulePollerInterval) {
-      clearInterval(this.schedulePollerInterval);
-    }
-    
-    // Cancel all active requests
-    for (const requestId of this.activeRequests.keys()) {
-      this.cancelRequest(requestId).catch(console.error);
+  getPublishOptions(platform) {
+    const commonOptions = {
+      updateStatus: {
+        type: 'checkbox',
+        label: 'Update draft status to "published" after successful publication',
+        default: true
+      }
+    };
+
+    // Add platform-specific options
+    switch (platform) {
+      case 'scribblehub':
+        return {
+          ...commonOptions,
+          mature: {
+            type: 'checkbox',
+            label: 'Mark as Mature Content'
+          }
+        };
+      
+      case 'fanfiction':
+        return {
+          ...commonOptions,
+          rating: {
+            type: 'select',
+            label: 'Rating',
+            options: [
+              { value: 'K', label: 'K - All Ages' },
+              { value: 'K+', label: 'K+ - Ages 9+' },
+              { value: 'T', label: 'T - Ages 13+' },
+              { value: 'M', label: 'M - Ages 16+' }
+            ]
+          }
+        };
+      
+      case 'ao3':
+        return {
+          ...commonOptions,
+          rating: {
+            type: 'select',
+            label: 'Rating',
+            options: [
+              { value: 'G', label: 'General Audiences' },
+              { value: 'T', label: 'Teen And Up' },
+              { value: 'M', label: 'Mature' },
+              { value: 'E', label: 'Explicit' }
+            ]
+          },
+          warnings: {
+            type: 'multiselect',
+            label: 'Archive Warnings',
+            options: [
+              { value: 'violence', label: 'Graphic Violence' },
+              { value: 'death', label: 'Major Character Death' },
+              { value: 'noncon', label: 'Rape/Non-Con' },
+              { value: 'underage', label: 'Underage' },
+              { value: 'none', label: 'No Archive Warnings Apply' }
+            ]
+          }
+        };
+      
+      default:
+        return commonOptions;
     }
   }
   
@@ -641,10 +747,6 @@ class PublishingService {
   getPublishOptionsHTML(platform) {
     const commonOptions = `
       <div class="form-group">
-        <label for="folder-name">Folder/Series Name</label>
-        <input type="text" id="folder-name" placeholder="Enter folder or series name">
-      </div>
-      <div class="form-group">
         <label class="checkbox-group">
           <input type="checkbox" id="update-status" checked>
           Update draft status to "published" after successful publication
@@ -654,34 +756,9 @@ class PublishingService {
 
     // Add platform-specific options
     switch (platform) {
-      case 'webnovel':
-        return `
-          ${commonOptions}
-          <div class="form-group">
-            <label for="webnovel-category">Category</label>
-            <select id="webnovel-category">
-              <option value="fantasy">Fantasy</option>
-              <option value="scifi">Science Fiction</option>
-              <option value="romance">Romance</option>
-              <option value="action">Action</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-        `;
-      
       case 'scribblehub':
         return `
           ${commonOptions}
-          <div class="form-group">
-            <label for="sh-genre">Genre</label>
-            <select id="sh-genre">
-              <option value="fantasy">Fantasy</option>
-              <option value="scifi">Science Fiction</option>
-              <option value="romance">Romance</option>
-              <option value="action">Action</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
           <div class="form-group">
             <label class="checkbox-group">
               <input type="checkbox" id="sh-mature" value="1">
@@ -693,16 +770,6 @@ class PublishingService {
       case 'fanfiction':
         return `
           ${commonOptions}
-          <div class="form-group">
-            <label for="ff-category">Category</label>
-            <select id="ff-category">
-              <option value="anime">Anime/Manga</option>
-              <option value="books">Books</option>
-              <option value="movies">Movies</option>
-              <option value="games">Games</option>
-              <option value="misc">Misc</option>
-            </select>
-          </div>
           <div class="form-group">
             <label for="ff-rating">Rating</label>
             <select id="ff-rating">
@@ -750,23 +817,16 @@ class PublishingService {
    */
   getPublishOptionsValues(platform) {
     const options = {
-      folderName: document.getElementById('folder-name')?.value,
       updateStatus: document.getElementById('update-status')?.checked
     };
 
     // Add platform-specific options
     switch (platform) {
-      case 'webnovel':
-        options.category = document.getElementById('webnovel-category')?.value;
-        break;
-      
       case 'scribblehub':
-        options.genre = document.getElementById('sh-genre')?.value;
         options.mature = document.getElementById('sh-mature')?.checked;
         break;
       
       case 'fanfiction':
-        options.category = document.getElementById('ff-category')?.value;
         options.rating = document.getElementById('ff-rating')?.value;
         break;
       
@@ -778,6 +838,21 @@ class PublishingService {
     }
 
     return options;
+  }
+  
+  /**
+   * Clean up the service before unloading
+   */
+  cleanup() {
+    // Clear the schedule poller
+    if (this.schedulePollerInterval) {
+      clearInterval(this.schedulePollerInterval);
+    }
+    
+    // Cancel all active requests
+    for (const requestId of this.activeRequests.keys()) {
+      this.cancelRequest(requestId).catch(console.error);
+    }
   }
 }
 

@@ -42,26 +42,25 @@ class DraftService {
    * @returns {Promise<void>} Promise that resolves when initialization is complete
    */
   async initialize() {
-    try {
-      console.log('Initializing DraftService');
-      
-      // Initialize draft editor if it exists
-      this.initializeDraftEditor();
-      
-      // Set up event listeners
-      this.setupEventListeners();
-      
-      // Load drafts for the current project if one is selected
-      const currentProject = ProjectService.getCurrentProject();
-      if (currentProject) {
-        await this.loadDraftsForProject(currentProject.id);
-      }
-      
-      console.log('DraftService initialized successfully');
-    } catch (error) {
-      console.error('Error initializing draft service:', error);
-      throw error;
+    console.log('Initializing DraftService...');
+    
+    // Initialize the draft editor
+    this.initializeDraftEditor();
+    
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    // Load drafts for the current project
+    const currentProject = await StorageService.getSetting('currentProject');
+    if (currentProject) {
+      await this.loadDraftsForProject(currentProject.id);
     }
+    
+    // Restore modal state if it exists
+    this.restoreModalState();
+    
+    console.log('DraftService initialized');
+    return true;
   }
   
   /**
@@ -1255,79 +1254,40 @@ class DraftService {
   }
   
   /**
-   * Handle platform selection in publish tab
-   * @param {string} platform - The selected platform
-   * @private
+   * Handle platform selection for publishing
+   * @param {string} platform - Selected platform ID
    */
   async handlePlatformSelection(platform) {
     try {
-      if (!this.currentDraft) {
-        UIService.showNotification('Please select a draft to publish', 'warning');
+      // Clear previous selection
+      const platformCards = document.querySelectorAll('.platform-card');
+      platformCards.forEach(card => card.classList.remove('selected'));
+      
+      // Highlight selected platform
+      const selectedCard = document.querySelector(`.platform-card[data-platform="${platform}"]`);
+      if (selectedCard) {
+        selectedCard.classList.add('selected');
+      }
+      
+      // Get current draft
+      const currentDraft = await this.getCurrentDraft();
+      if (!currentDraft) {
+        UIService.showNotification('Please select a draft first', 'warning');
         return;
       }
-
-      // Highlight selected platform card
-      const platformCards = document.querySelectorAll('.platform-card');
-      platformCards.forEach(card => {
-        card.classList.remove('selected');
-        if (card.dataset.platform === platform) {
-          card.classList.add('selected');
-        }
-      });
-
-      // Check if user is logged in to the platform
-      const isLoggedIn = publishingService.isLoggedIn(platform);
-
-      // Update platform settings UI
-      const platformSettings = document.getElementById('platform-settings');
-      if (platformSettings) {
-        platformSettings.innerHTML = `
-          <h3>${this.getPlatformDisplayName(platform)} Settings</h3>
-          <div class="platform-actions">
-            ${isLoggedIn ? `
-              <button id="platform-logout-btn" class="secondary-btn">
-                <i class="fas fa-sign-out-alt"></i> Logout
-              </button>
-              <button id="platform-publish-btn" class="primary-btn">
-                <i class="fas fa-upload"></i> Publish
-              </button>
-            ` : `
-              <button id="platform-login-btn" class="primary-btn">
-                <i class="fas fa-sign-in-alt"></i> Login
-              </button>
-            `}
-          </div>
-          ${isLoggedIn ? `
-            <div class="publish-options">
-              <h4>Publishing Options</h4>
-              ${await publishingService.getPublishOptionsHTML(platform)}
-            </div>
-          ` : ''}
-        `;
-
-        // Set up event listeners for the new buttons
-        const loginBtn = document.getElementById('platform-login-btn');
-        if (loginBtn) {
-          loginBtn.addEventListener('click', () => this.handlePlatformLogin(platform));
-        }
-
-        const logoutBtn = document.getElementById('platform-logout-btn');
-        if (logoutBtn) {
-          logoutBtn.addEventListener('click', () => this.handlePlatformLogout(platform));
-        }
-
-        const publishBtn = document.getElementById('platform-publish-btn');
-        if (publishBtn) {
-          publishBtn.addEventListener('click', () => this.handlePlatformPublish(platform));
+      
+      // Check if logged in to platform
+      if (!publishingService.isLoggedIn(platform)) {
+        const result = await publishingService.login(platform);
+        if (!result.success) {
+          UIService.showNotification(result.message, 'error');
+          return;
         }
       }
-
-      // Show appropriate notification
-      if (isLoggedIn) {
-        UIService.showNotification(`Ready to publish to ${this.getPlatformDisplayName(platform)}`, 'info');
-      } else {
-        UIService.showNotification(`Please log in to ${this.getPlatformDisplayName(platform)}`, 'info');
-      }
+      
+      // Show scheduling modal
+      await this.showSchedulingModal(platform);
+      
     } catch (error) {
       console.error('Error handling platform selection:', error);
       UIService.showNotification(`Error selecting platform: ${error.message}`, 'error');
@@ -1335,191 +1295,141 @@ class DraftService {
   }
   
   /**
-   * Handle platform login
-   * @param {string} platform - The platform to log in to
-   * @private
-   */
-  async handlePlatformLogin(platform) {
-    try {
-      UIService.toggleLoading(true, `Logging in to ${this.getPlatformDisplayName(platform)}...`);
-      
-      const success = await publishingService.login(platform);
-      
-      if (success) {
-        // Update UI to reflect logged-in state
-        await this.handlePlatformSelection(platform);
-        UIService.showNotification(`Successfully logged in to ${this.getPlatformDisplayName(platform)}`, 'success');
-      } else {
-        UIService.showNotification(`Failed to log in to ${this.getPlatformDisplayName(platform)}`, 'error');
-      }
-    } catch (error) {
-      console.error('Error handling platform login:', error);
-      UIService.showNotification(`Error logging in: ${error.message}`, 'error');
-    } finally {
-      UIService.toggleLoading(false);
-    }
-  }
-  
-  /**
-   * Handle platform logout
-   * @param {string} platform - The platform to log out from
-   * @private
-   */
-  async handlePlatformLogout(platform) {
-    try {
-      UIService.toggleLoading(true, `Logging out from ${this.getPlatformDisplayName(platform)}...`);
-      
-      const success = await publishingService.logout(platform);
-      
-      if (success) {
-        // Update UI to reflect logged-out state
-        await this.handlePlatformSelection(platform);
-        UIService.showNotification(`Successfully logged out from ${this.getPlatformDisplayName(platform)}`, 'success');
-      } else {
-        UIService.showNotification(`Failed to log out from ${this.getPlatformDisplayName(platform)}`, 'error');
-      }
-    } catch (error) {
-      console.error('Error handling platform logout:', error);
-      UIService.showNotification(`Error logging out: ${error.message}`, 'error');
-    } finally {
-      UIService.toggleLoading(false);
-    }
-  }
-  
-  /**
-   * Handle platform publish button click
-   * @param {string} platform - The platform to publish to
-   * @private
-   */
-  async handlePlatformPublish(platform) {
-    try {
-      if (!this.currentDraft) {
-        UIService.showNotification('Please select a draft to publish', 'warning');
-        return;
-      }
-
-      // Check if user is logged in
-      if (!publishingService.isLoggedIn(platform)) {
-        UIService.showNotification(`Please log in to ${this.getPlatformDisplayName(platform)} first`, 'warning');
-        return;
-      }
-
-      // Show scheduling modal
-      this.showSchedulingModal(platform);
-    } catch (error) {
-      console.error('Error handling platform publish:', error);
-      UIService.showNotification(`Error preparing to publish: ${error.message}`, 'error');
-    }
-  }
-  
-  /**
-   * Show scheduling modal for publication
-   * @param {string} platform - The platform to publish to
-   * @private
+   * Show the scheduling modal for the selected platform
+   * @param {string} platform - Selected platform ID
    */
   async showSchedulingModal(platform) {
-    try {
-      const modal = document.getElementById('scheduling-modal');
-      if (!modal) {
-        throw new Error('Scheduling modal not found');
-      }
+    const modal = document.getElementById('scheduling-modal');
+    if (!modal) return;
 
-      // Get platform-specific options
-      const publishOptions = await publishingService.getPublishOptions(platform);
+    // Get current local time
+    const now = new Date();
+    
+    // Convert to GMT+8
+    const gmt8Time = new Date(now.getTime() + ((8 * 60 + now.getTimezoneOffset()) * 60 * 1000));
+    
+    // Format for inputs
+    const currentDate = gmt8Time.toISOString().split('T')[0];
+    const currentTime = gmt8Time.toLocaleTimeString('en-US', { 
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-      // Update modal content with platform-specific options
-      const optionsContainer = modal.querySelector('.publish-options');
-      if (optionsContainer) {
-        optionsContainer.innerHTML = publishOptions;
-      }
+    // Calculate your local time for display
+    const localTime = new Date(gmt8Time.getTime() - ((8 * 60 + now.getTimezoneOffset()) * 60 * 1000));
+    const localTimeStr = localTime.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-      // Set up event listeners
-      const scheduleToggle = modal.querySelector('#enable-scheduling');
-      const dateTimeInputs = modal.querySelector('.scheduling-inputs');
-      if (scheduleToggle && dateTimeInputs) {
-        scheduleToggle.addEventListener('change', () => {
-          dateTimeInputs.style.display = scheduleToggle.checked ? 'block' : 'none';
-        });
-      }
+    // Update the modal content
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Schedule Publication</h3>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="checkbox-group">
+              <input type="checkbox" id="enable-scheduling">
+              Schedule publication for later
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-group">
+              <input type="checkbox" id="update-draft-status" checked>
+              Set draft status to "Published" after publishing
+            </label>
+          </div>
+          <div id="scheduling-options" style="display: none;">
+            <div class="form-group">
+              <label for="scheduled-date">Publication Date:</label>
+              <input type="date" id="scheduled-date" class="form-control" value="${currentDate}" min="${currentDate}">
+            </div>
+            <div class="form-group">
+              <label for="scheduled-time">Publication Time (GMT+8):</label>
+              <input type="time" id="scheduled-time" class="form-control" value="${currentTime}">
+              <small class="timezone-info">Your local time: ${localTimeStr}</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="confirm-schedule-btn" class="primary-btn">
+            <i class="fas fa-check"></i> Confirm
+          </button>
+          <button id="cancel-schedule-btn" class="secondary-btn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    `;
 
-      // Set minimum date to today
-      const dateInput = modal.querySelector('#publish-date');
-      if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.min = today;
-        dateInput.value = today;
-      }
+    // Add event listeners
+    const closeBtn = modal.querySelector('.modal-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+      });
+    }
 
-      // Set default time to current time rounded to next hour
-      const timeInput = modal.querySelector('#publish-time');
-      if (timeInput) {
-        const now = new Date();
-        now.setHours(now.getHours() + 1);
-        now.setMinutes(0);
-        timeInput.value = now.toTimeString().slice(0, 5);
-      }
+    const cancelBtn = modal.querySelector('#cancel-schedule-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+      });
+    }
 
-      // Set up publish button
-      const publishBtn = modal.querySelector('#modal-publish-btn');
-      if (publishBtn) {
-        publishBtn.addEventListener('click', async () => {
-          try {
-            UIService.toggleLoading(true, 'Publishing draft...');
-
-            const scheduleEnabled = scheduleToggle.checked;
-            const publishDate = dateInput.value;
-            const publishTime = timeInput.value;
-            const folderName = modal.querySelector('#folder-name').value;
-            const updateStatus = modal.querySelector('#update-status').checked;
-
-            // Get additional options from platform-specific fields
-            const options = publishingService.getPublishOptionsValues(platform);
-
-            const publishData = {
-              draftId: this.currentDraft.id,
-              platform,
-              scheduled: scheduleEnabled,
-              publishDateTime: scheduleEnabled ? `${publishDate}T${publishTime}` : null,
-              folderName: folderName || null,
-              updateStatus,
-              ...options
-            };
-
-            const result = await publishingService.publish(publishData);
-
-            if (result.success) {
-              // Update draft status if requested
-              if (updateStatus) {
-                await this.updateDraftStatus(this.currentDraft.id, 'published');
-              }
-
-              // Update publishing history
-              await this.updatePublishingHistory(platform, result.url);
-
-              UIService.showNotification(
-                scheduleEnabled ? 'Draft scheduled for publication' : 'Draft published successfully',
-                'success'
-              );
-
-              // Close modal
-              modal.style.display = 'none';
-            } else {
-              throw new Error(result.message || 'Failed to publish draft');
-            }
-          } catch (error) {
-            console.error('Error publishing draft:', error);
-            UIService.showNotification(`Error publishing draft: ${error.message}`, 'error');
-          } finally {
-            UIService.toggleLoading(false);
+    const confirmBtn = modal.querySelector('#confirm-schedule-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        // Validate the selected time before proceeding
+        const dateInput = document.getElementById('scheduled-date');
+        const timeInput = document.getElementById('scheduled-time');
+        
+        if (dateInput && timeInput) {
+          const selectedDate = new Date(dateInput.value);
+          const [hours, minutes] = timeInput.value.split(':');
+          selectedDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          
+          // Get current GMT+8 time for comparison
+          const now = new Date();
+          const gmt8Now = new Date(now.getTime() + ((8 * 60 + now.getTimezoneOffset()) * 60 * 1000));
+          
+          if (selectedDate <= gmt8Now) {
+            UIService.showNotification('Cannot schedule publication in the past', 'error');
+            return;
           }
-        });
-      }
+        }
+        
+        this.executePublish(platform);
+      });
+    }
 
-      // Show modal
-      modal.style.display = 'block';
-    } catch (error) {
-      console.error('Error showing scheduling modal:', error);
-      UIService.showNotification(`Error showing scheduling modal: ${error.message}`, 'error');
+    // Add event listener for enable scheduling checkbox
+    const enableSchedulingCheckbox = modal.querySelector('#enable-scheduling');
+    const schedulingOptions = modal.querySelector('#scheduling-options');
+    if (enableSchedulingCheckbox && schedulingOptions) {
+      enableSchedulingCheckbox.addEventListener('change', (e) => {
+        schedulingOptions.style.display = e.target.checked ? 'block' : 'none';
+      });
+    }
+
+    // Show the modal
+    modal.style.display = 'flex';
+  }
+
+  // Add this method to restore modal state on page load
+  restoreModalState() {
+    const modalState = localStorage.getItem('schedulingModalState');
+    if (modalState) {
+      const state = JSON.parse(modalState);
+      if (state.isOpen) {
+        // Show the modal with the saved state
+        this.showSchedulingModal(state.platform);
+      }
     }
   }
   
@@ -1537,16 +1447,11 @@ class DraftService {
       // Get scheduling options
       const enableScheduling = document.getElementById('enable-scheduling').checked;
       
-      // Get folder name
-      const folderNameInput = document.getElementById('folder-name');
-      const folderName = folderNameInput ? folderNameInput.value.trim() : '';
-      
       // Get update status option
       const updateStatus = document.getElementById('update-draft-status').checked;
       
       // Publication options
       const options = {
-        folderName,
         updateStatus
       };
       
@@ -1574,11 +1479,18 @@ class DraftService {
           return;
         }
         
-        // Parse the date/time as GMT+8
-        const scheduled = new Date(`${date}T${time}:00+08:00`);
+        // Parse the GMT+8 time
+        const [hours, minutes] = time.split(':');
         
-        // If the scheduled time is in the past, show error
-        if (scheduled < new Date()) {
+        // Create date object in GMT+8
+        const scheduledDateTime = new Date(date);
+        scheduledDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        // Get current time in GMT+8 for comparison
+        const now = new Date();
+        const gmt8Now = new Date(now.getTime() + ((8 * 60 + now.getTimezoneOffset()) * 60 * 1000));
+        
+        if (scheduledDateTime <= gmt8Now) {
           UIService.showNotification('Scheduled time must be in the future', 'error');
           return;
         }
@@ -1594,8 +1506,8 @@ class DraftService {
           }
         }
         
-        // Schedule the publication
-        const result = await PublishingService.schedulePublication(platform, this.currentDraft, scheduled, options);
+        // Schedule the publication (pass the GMT+8 time)
+        const result = await PublishingService.schedulePublication(platform, this.currentDraft, scheduledDateTime, options);
         
         if (result.success) {
           UIService.showNotification(result.message, 'success');
@@ -2033,6 +1945,9 @@ class DraftService {
             <button class="small-btn edit-draft-btn" title="Edit draft" data-id="${draft.id}">
               <i class="fas fa-edit"></i>
             </button>
+            <button class="small-btn publish-draft-btn" title="Publish draft" data-id="${draft.id}">
+              <i class="fas fa-upload"></i>
+            </button>
             <button class="small-btn delete-draft-btn" title="Delete draft" data-id="${draft.id}">
               <i class="fas fa-trash-alt"></i>
             </button>
@@ -2041,33 +1956,58 @@ class DraftService {
         
         listContainer.appendChild(row);
         
-        // Add event listeners for the edit and delete buttons
+        // Add event listeners for the buttons
         const editBtn = row.querySelector('.edit-draft-btn');
         if (editBtn) {
-          editBtn.addEventListener('click', () => {
+          editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             this.handleEditDraft(draft.id);
+          });
+        }
+        
+        const publishBtn = row.querySelector('.publish-draft-btn');
+        if (publishBtn) {
+          publishBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handlePublishDraft(draft.id);
           });
         }
         
         const deleteBtn = row.querySelector('.delete-draft-btn');
         if (deleteBtn) {
-          deleteBtn.addEventListener('click', () => {
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             this.handleDeleteDraft(draft.id);
+          });
+        }
+        
+        // Add checkbox change handler
+        const checkbox = row.querySelector('.draft-select');
+        if (checkbox) {
+          checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (e.target.checked) {
+              row.classList.add('selected');
+            } else {
+              row.classList.remove('selected');
+            }
+            this.updateSelectedDraftsCount();
           });
         }
         
         // Add row click handler to select the draft
         row.addEventListener('click', (e) => {
-          // Ignore if clicking on buttons or checkbox
+          // Toggle checkbox if clicking on the row (but not on buttons or checkbox)
           if (
-            e.target.tagName === 'BUTTON' || 
-            e.target.tagName === 'I' || 
-            e.target.tagName === 'INPUT'
+            !e.target.closest('button') && 
+            !e.target.closest('input[type="checkbox"]')
           ) {
-            return;
+            const checkbox = row.querySelector('.draft-select');
+            if (checkbox) {
+              checkbox.checked = !checkbox.checked;
+              checkbox.dispatchEvent(new Event('change'));
+            }
           }
-          
-          this.handleEditDraft(draft.id);
         });
       });
       
@@ -2488,6 +2428,36 @@ class DraftService {
    */
   escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Get the current draft
+   * @returns {Object|null} The current draft or null if none selected
+   */
+  getCurrentDraft() {
+    return this.currentDraft;
+  }
+
+  /**
+   * Handle publishing a draft from the library
+   * @param {string} draftId - Draft ID
+   * @private
+   */
+  async handlePublishDraft(draftId) {
+    try {
+      // First set this as the current draft
+      await this.setCurrentDraft(draftId);
+      
+      // Switch to the publish tab
+      UIService.activateSecondaryTab('drafts-publish');
+      
+      // Show notification
+      UIService.showNotification('Select a platform to publish to', 'info');
+      UIService.updateLastAction('Ready to publish draft');
+    } catch (error) {
+      console.error('Error preparing draft for publishing:', error);
+      UIService.showNotification('Error preparing draft for publishing', 'error');
+    }
   }
 }
 
